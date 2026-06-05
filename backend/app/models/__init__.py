@@ -1,2 +1,3 @@
-# SecureNotes Pro Models Package
-# Models will be defined in later phases.
+from app.models.user import User
+
+__all__ = ['User']

@@ -1,12 +1,14 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { Shield, LayoutDashboard, FileText, Settings, Home, LogOut } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * Collapsible Navigation Sidebar.
  * Switches between fully open, minimized icon-only (desktop), and sliding drawer (mobile).
  */
 const Sidebar = ({ isOpen, setIsOpen }) => {
+  const { logout } = useAuth();
   const menuItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'All Notes', path: '/dashboard#notes', icon: FileText, disabled: true },
@@ -72,7 +74,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </nav>
 
         {/* Sidebar Footer action */}
-        <div className="p-3 border-t border-slate-50">
+        <div className="p-3 border-t border-slate-50 space-y-1">
           <Link
             to="/"
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 transition-all duration-150"
@@ -80,6 +82,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             <Home className="w-5 h-5 flex-shrink-0" />
             {isOpen && <span>Return to Site</span>}
           </Link>
+          
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50/70 transition-all duration-150 text-left focus:outline-none cursor-pointer"
+          >
+            <LogOut className="w-5 h-5 flex-shrink-0" />
+            {isOpen && <span>Sign Out</span>}
+          </button>
         </div>
       </aside>
     </>

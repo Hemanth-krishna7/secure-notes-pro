@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_login import LoginManager
 
 from config import config_by_name
 
@@ -9,6 +10,7 @@ from config import config_by_name
 db = SQLAlchemy()
 migrate = Migrate()
 cors = CORS()
+login_manager = LoginManager()
 
 def create_app(config_name='development'):
     """Flask Application Factory."""
@@ -21,6 +23,23 @@ def create_app(config_name='development'):
     # Initialize extensions with application context
     db.init_app(app)
     migrate.init_app(app, db)
+    
+    # Configure Flask-Login
+    login_manager.init_app(app)
+    
+    # Define user loader callback
+    @login_manager.user_loader
+    def load_user(user_id):
+        from app.models.user import User
+        return User.query.get(int(user_id))
+        
+    # Custom unauthorized JSON handler for API compatibility
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        return jsonify({
+            "status": "error",
+            "message": "Unauthorized access. Please login."
+        }), 401
     
     # Configure CORS - allow frontend credentials for session-based auth
     cors.init_app(

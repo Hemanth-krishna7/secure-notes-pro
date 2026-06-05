@@ -1,11 +1,13 @@
 import React from 'react';
 import { FileText, Pin, Folder, Clock, Plus, ArrowUpRight } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * Dashboard page.
  * Displays metric cards for Total Notes, Pinned Notes, Categories, and Recent Activity placeholders.
  */
 const Dashboard = () => {
+  const { user } = useAuth();
   const cards = [
     {
       title: 'Total Notes',
@@ -58,7 +60,7 @@ const Dashboard = () => {
       {/* Top dashboard heading */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Workspace Dashboard</h2>
+          <h2 className="text-xl font-bold text-slate-900">Welcome, {user?.full_name || 'User'}</h2>
           <p className="text-xs text-slate-400 mt-1">Real-time statistics of your secured note vault.</p>
         </div>
         

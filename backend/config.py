@@ -11,6 +11,10 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-key-secure-notes-pro-12345')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
+    # Secure Session Cookies Configuration
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    
     # Configure database URI
     DATABASE_URL = os.environ.get('DATABASE_URL')
     if not DATABASE_URL:
