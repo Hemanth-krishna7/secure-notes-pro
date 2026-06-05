@@ -14,6 +14,9 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
+    # Relationships
+    notes = db.relationship('Note', backref='user', lazy=True, cascade='all, delete-orphan')
+
     def set_password(self, password):
         """Hashes the password and saves it to password_hash."""
         self.password_hash = generate_password_hash(password)

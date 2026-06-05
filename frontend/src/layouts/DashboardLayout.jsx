@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Menu, User, Bell, ChevronDown } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 /**
  * Reusable DashboardLayout.
@@ -9,6 +10,15 @@ import { Menu, User, Bell, ChevronDown } from 'lucide-react';
  */
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { user } = useAuth();
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 0) return 'U';
+    if (parts.length === 1) return parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex overflow-hidden">
@@ -43,10 +53,10 @@ const DashboardLayout = () => {
             {/* Profile Information */}
             <div className="flex items-center gap-2 pl-3 border-l border-slate-100">
               <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 text-primary flex items-center justify-center font-bold text-sm">
-                JD
+                {getInitials(user?.full_name)}
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-semibold text-slate-700 leading-none">John Doe</span>
+                <span className="text-xs font-semibold text-slate-700 leading-none">{user?.full_name || 'User'}</span>
                 <span className="text-[10px] text-slate-400 mt-0.5">Premium Plan</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />

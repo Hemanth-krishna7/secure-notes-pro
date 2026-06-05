@@ -53,6 +53,10 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       });
+      if (response.data && response.data.status === 'success') {
+        setUser(response.data.data);
+        setIsAuthenticated(true);
+      }
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: "Network connection error." };

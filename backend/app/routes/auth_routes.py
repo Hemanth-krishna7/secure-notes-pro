@@ -51,9 +51,12 @@ def register():
         db.session.add(user)
         db.session.commit()
         
+        # 4. Automatically log in the user
+        login_user(user, remember=True)
+        
         return success_response(
             data=user.to_dict(),
-            message="Registration successful! Please sign in.",
+            message="Registration successful! Logging you in...",
             status_code=201
         )
     except Exception as e:

@@ -60,18 +60,16 @@ const Register = () => {
     setLoading(true);
     try {
       const result = await register(cleanName, cleanEmail, password);
-      setSuccessMsg(result.message || "Registration successful!");
+      setSuccessMsg(result.message || "Registration successful! Logging you in...");
       // Reset fields
       setName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
       
-      // Redirect to login page carrying the success notification
+      // Redirect directly to protected dashboard since user is auto-logged in
       setTimeout(() => {
-        navigate('/login', { 
-          state: { successMessage: "Account created successfully! Please sign in with your credentials." } 
-        });
+        navigate('/dashboard');
       }, 1500);
     } catch (err) {
       setErrorMsg(err.message || "Registration failed. Please check your inputs.");
