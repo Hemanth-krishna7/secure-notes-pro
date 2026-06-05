@@ -17,6 +17,14 @@ class Note(db.Model):
 
     def to_dict(self):
         """Serializes the note object into a dictionary."""
+        created_at_utc = self.created_at
+        if created_at_utc and created_at_utc.tzinfo is None:
+            created_at_utc = created_at_utc.replace(tzinfo=timezone.utc)
+            
+        updated_at_utc = self.updated_at
+        if updated_at_utc and updated_at_utc.tzinfo is None:
+            updated_at_utc = updated_at_utc.replace(tzinfo=timezone.utc)
+
         return {
             'id': self.id,
             'title': self.title,
@@ -25,6 +33,6 @@ class Note(db.Model):
             'is_pinned': self.is_pinned,
             'is_favorite': self.is_favorite,
             'user_id': self.user_id,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'created_at': created_at_utc.isoformat() if created_at_utc else None,
+            'updated_at': updated_at_utc.isoformat() if updated_at_utc else None
         }

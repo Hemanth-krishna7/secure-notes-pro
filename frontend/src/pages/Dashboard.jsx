@@ -179,14 +179,7 @@ const Dashboard = () => {
     return text.slice(0, limit) + '...';
   };
 
-  // Date formatter helper
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  // Relative Time helper for activities
+  // Relative Time helper for activities and note cards
   const getRelativeTime = (dateString) => {
     if (!dateString) return '';
     const now = new Date();
@@ -199,16 +192,18 @@ const Dashboard = () => {
     if (diffSecs < 60) return 'Just now';
     
     const diffMins = Math.floor(diffSecs / 60);
-    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 60) {
+      return diffMins === 1 ? '1 minute ago' : `${diffMins} minutes ago`;
+    }
     
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) {
+      return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+    }
     
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${diffDays} days ago`;
   };
 
   // Metric calculation
@@ -224,18 +219,40 @@ const Dashboard = () => {
     return titleMatch || contentMatch;
   });
 
-  // Dynamic activity log derived from note updates
-  const recentActivities = [...notes]
-    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
-    .slice(0, 5)
-    .map(note => {
-      const isNew = Math.abs(new Date(note.updated_at) - new Date(note.created_at)) < 5000;
-      return {
-        action: isNew ? 'Created note' : 'Updated note',
+  // Dynamic activity log derived from note updates and creations
+  const getActivityLog = () => {
+    const events = [];
+    notes.forEach(note => {
+      // Every note has a creation event
+      events.push({
+        action: 'Created note',
         target: note.title,
-        time: getRelativeTime(note.updated_at)
-      };
+        timestamp: note.created_at
+      });
+      
+      // If updated_at is different from created_at, it also has an update event
+      const isUpdated = Math.abs(new Date(note.updated_at) - new Date(note.created_at)) > 2000;
+      if (isUpdated) {
+        events.push({
+          action: 'Updated note',
+          target: note.title,
+          timestamp: note.updated_at
+        });
+      }
     });
+
+    // Sort by timestamp descending and take the 5 most recent
+    return events
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, 5)
+      .map(event => ({
+        action: event.action,
+        target: event.target,
+        time: getRelativeTime(event.timestamp)
+      }));
+  };
+
+  const recentActivities = getActivityLog();
 
   const cards = [
     {
@@ -425,7 +442,7 @@ const Dashboard = () => {
 
                   {/* Note Footer */}
                   <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-900/5 text-[10px] text-slate-400">
-                    <span>{formatDate(note.created_at)}</span>
+                    <span>{getRelativeTime(note.created_at)}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => {
