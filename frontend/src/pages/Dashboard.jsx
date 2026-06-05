@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Pin, Folder, Heart, Clock, Plus, Trash2, Edit3, Search, X, Loader2 } from 'lucide-react';
+import { FileText, Pin, Folder, Heart, Clock, Plus, Edit3, Archive, Search, X, Loader2, Tag as TagIcon, Sparkles } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../services/api';
+import NoteModal from '../components/NoteModal';
 
 const COLOR_PRESETS = [
   { name: 'White', value: '#ffffff' },
@@ -15,40 +16,48 @@ const COLOR_PRESETS = [
 const Dashboard = () => {
   const { user } = useAuth();
   const [notes, setNotes] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Search & Filter state
+  // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals state
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [noteModalMode, setNoteModalMode] = useState('create'); // 'create' | 'edit'
   const [selectedNote, setSelectedNote] = useState(null);
-  const [noteForm, setNoteForm] = useState({ title: '', content: '', color: '#ffffff' });
+  // Redundant local modal state removed since it is encapsulated inside NoteModal
 
-  // Delete Confirm state
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState(null);
-
-  // Fetch all notes
-  const fetchNotes = async () => {
+  // Fetch all dashboard data
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/notes');
-      if (response.data && response.data.status === 'success') {
-        setNotes(response.data.data || []);
+      const [notesRes, categoriesRes, tagsRes] = await Promise.all([
+        api.get('/notes'),
+        api.get('/categories'),
+        api.get('/tags')
+      ]);
+      if (notesRes.data?.status === 'success') {
+        setNotes(notesRes.data.data || []);
+      }
+      if (categoriesRes.data?.status === 'success') {
+        setCategories(categoriesRes.data.data || []);
+      }
+      if (tagsRes.data?.status === 'success') {
+        setTags(tagsRes.data.data || []);
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || 'Failed to load notes.');
+      setError(err.response?.data?.message || 'Failed to load dashboard data.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNotes();
+    fetchData();
   }, []);
 
   // Show error for 4 seconds, then fade out
@@ -59,43 +68,12 @@ const Dashboard = () => {
     }
   }, [error]);
 
-  // Handle Note Create/Edit Submit
-  const handleNoteSubmit = async (e) => {
-    e.preventDefault();
-    if (!noteForm.title.trim()) {
-      setError('Title is required.');
-      return;
-    }
-
-    try {
-      if (noteModalMode === 'create') {
-        const response = await api.post('/notes', {
-          title: noteForm.title.trim(),
-          content: noteForm.content,
-          color: noteForm.color,
-          is_pinned: false,
-          is_favorite: false
-        });
-        if (response.data && response.data.status === 'success') {
-          setNotes([response.data.data, ...notes]);
-          setIsNoteModalOpen(false);
-        }
-      } else if (noteModalMode === 'edit' && selectedNote) {
-        const response = await api.put(`/notes/${selectedNote.id}`, {
-          title: noteForm.title.trim(),
-          content: noteForm.content,
-          color: noteForm.color
-        });
-        if (response.data && response.data.status === 'success') {
-          setNotes(notes.map(n => n.id === selectedNote.id ? response.data.data : n));
-          setIsNoteModalOpen(false);
-        }
-      }
-      // Reset form
-      setNoteForm({ title: '', content: '', color: '#ffffff' });
-      setSelectedNote(null);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save note.');
+  // Handle Note Save/Update Callback
+  const handleNoteSaved = (savedNote) => {
+    if (notes.some(n => n.id === savedNote.id)) {
+      setNotes(notes.map(n => n.id === savedNote.id ? savedNote : n));
+    } else {
+      setNotes([savedNote, ...notes]);
     }
   };
 
@@ -106,8 +84,7 @@ const Dashboard = () => {
       const response = await api.put(`/notes/${note.id}`, {
         is_pinned: !note.is_pinned
       });
-      if (response.data && response.data.status === 'success') {
-        // Resort: pinned first, then updated_at desc
+      if (response.data?.status === 'success') {
         const updatedNotes = notes.map(n => n.id === note.id ? response.data.data : n);
         updatedNotes.sort((a, b) => {
           if (a.is_pinned !== b.is_pinned) {
@@ -129,7 +106,7 @@ const Dashboard = () => {
       const response = await api.put(`/notes/${note.id}`, {
         is_favorite: !note.is_favorite
       });
-      if (response.data && response.data.status === 'success') {
+      if (response.data?.status === 'success') {
         setNotes(notes.map(n => n.id === note.id ? response.data.data : n));
       }
     } catch (err) {
@@ -137,38 +114,24 @@ const Dashboard = () => {
     }
   };
 
+  // Archive Note handler
+  const handleArchiveNote = async (e, note) => {
+    e.stopPropagation();
+    try {
+      const response = await api.put(`/notes/${note.id}/archive`);
+      if (response.data?.status === 'success') {
+        setNotes(notes.filter(n => n.id !== note.id));
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to archive note.');
+    }
+  };
+
   // Trigger Edit Modal
   const openEditModal = (note) => {
     setSelectedNote(note);
-    setNoteForm({
-      title: note.title,
-      content: note.content || '',
-      color: note.color || '#ffffff'
-    });
     setNoteModalMode('edit');
     setIsNoteModalOpen(true);
-  };
-
-  // Trigger Delete Dialog
-  const openDeleteDialog = (e, note) => {
-    e.stopPropagation();
-    setNoteToDelete(note);
-    setIsDeleteConfirmOpen(true);
-  };
-
-  // Delete note
-  const handleDeleteNote = async () => {
-    if (!noteToDelete) return;
-    try {
-      const response = await api.delete(`/notes/${noteToDelete.id}`);
-      if (response.data && response.data.status === 'success') {
-        setNotes(notes.filter(n => n.id !== noteToDelete.id));
-        setIsDeleteConfirmOpen(false);
-        setNoteToDelete(null);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete note.');
-    }
   };
 
   // Truncate content preview helper (100-150 characters)
@@ -182,34 +145,39 @@ const Dashboard = () => {
   // Relative Time helper for activities and note cards
   const getRelativeTime = (dateString) => {
     if (!dateString) return '';
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now - date;
-    
-    if (diffMs < 0) return 'Just now';
-    
-    const diffSecs = Math.floor(diffMs / 1000);
-    if (diffSecs < 60) return 'Just now';
-    
-    const diffMins = Math.floor(diffSecs / 60);
-    if (diffMins < 60) {
-      return diffMins === 1 ? '1 minute ago' : `${diffMins} minutes ago`;
+    try {
+      const now = new Date();
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return '';
+      const diffMs = now - date;
+      
+      if (diffMs < 0) return 'Just now';
+      
+      const diffSecs = Math.floor(diffMs / 1000);
+      if (diffSecs < 60) return 'Just now';
+      
+      const diffMins = Math.floor(diffSecs / 60);
+      if (diffMins < 60) {
+        return diffMins === 1 ? '1 minute ago' : `${diffMins} minutes ago`;
+      }
+      
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) {
+        return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+      }
+      
+      const diffDays = Math.floor(diffHours / 24);
+      if (diffDays === 1) return 'Yesterday';
+      return `${diffDays} days ago`;
+    } catch (e) {
+      return '';
     }
-    
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) {
-      return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
-    }
-    
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return 'Yesterday';
-    return `${diffDays} days ago`;
   };
 
   // Metric calculation
   const totalNotes = notes.length;
   const pinnedNotesCount = notes.filter(n => n.is_pinned).length;
-  const categoriesCount = 0; // Categories (0 for now) as requested
+  const categoriesCount = categories.length;
   const favoriteNotesCount = notes.filter(n => n.is_favorite).length;
 
   // Filtered notes based on search query
@@ -223,14 +191,12 @@ const Dashboard = () => {
   const getActivityLog = () => {
     const events = [];
     notes.forEach(note => {
-      // Every note has a creation event
       events.push({
         action: 'Created note',
         target: note.title,
         timestamp: note.created_at
       });
       
-      // If updated_at is different from created_at, it also has an update event
       const isUpdated = Math.abs(new Date(note.updated_at) - new Date(note.created_at)) > 2000;
       if (isUpdated) {
         events.push({
@@ -241,7 +207,6 @@ const Dashboard = () => {
       }
     });
 
-    // Sort by timestamp descending and take the 5 most recent
     return events
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       .slice(0, 5)
@@ -253,6 +218,33 @@ const Dashboard = () => {
   };
 
   const recentActivities = getActivityLog();
+
+  // Find most recently updated note
+  const getMostRecentlyUpdatedNote = () => {
+    if (notes.length === 0) return null;
+    return [...notes].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
+  };
+  const recentlyUpdated = getMostRecentlyUpdatedNote();
+
+  // Find most active category
+  const getMostActiveCategory = () => {
+    if (notes.length === 0) return 'None';
+    const counts = {};
+    notes.forEach(note => {
+      const catName = note.category?.name || 'Uncategorized';
+      counts[catName] = (counts[catName] || 0) + 1;
+    });
+    let maxCat = 'None';
+    let maxCount = -1;
+    for (const cat in counts) {
+      if (counts[cat] > maxCount) {
+        maxCount = counts[cat];
+        maxCat = cat;
+      }
+    }
+    return maxCount > 0 ? `${maxCat} (${maxCount} notes)` : 'None';
+  };
+  const mostActiveCategory = getMostActiveCategory();
 
   const cards = [
     {
@@ -307,7 +299,7 @@ const Dashboard = () => {
         {/* Create Note Button */}
         <button
           onClick={() => {
-            setNoteForm({ title: '', content: '', color: '#ffffff' });
+            setSelectedNote(null);
             setNoteModalMode('create');
             setIsNoteModalOpen(true);
           }}
@@ -386,7 +378,7 @@ const Dashboard = () => {
               {!searchQuery && (
                 <button
                   onClick={() => {
-                    setNoteForm({ title: '', content: '', color: '#ffffff' });
+                    setSelectedNote(null);
                     setNoteModalMode('create');
                     setIsNoteModalOpen(true);
                   }}
@@ -408,9 +400,16 @@ const Dashboard = () => {
                   {/* Note body */}
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-6">
-                      <h3 className="text-sm font-bold text-slate-800 break-words flex-1 group-hover:text-primary transition-colors">
-                        {note.title}
-                      </h3>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <h3 className="text-sm font-bold text-slate-800 truncate group-hover:text-primary transition-colors">
+                          {note.title}
+                        </h3>
+                        {/* Category Badge */}
+                        <span className="inline-flex items-center gap-1 text-[9px] bg-slate-900/5 text-slate-600 px-2 py-0.5 rounded-full font-medium w-fit">
+                          <Folder className="w-2.5 h-2.5" />
+                          {note.category?.name || 'Uncategorized'}
+                        </span>
+                      </div>
                       
                       {/* Pinned & Favorite status */}
                       <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -438,6 +437,18 @@ const Dashboard = () => {
                     <p className="text-xs text-slate-500 leading-relaxed break-words">
                       {getPreviewContent(note.content)}
                     </p>
+
+                    {/* Tags list */}
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {note.tags.map(t => (
+                          <span key={t.id} className="inline-flex items-center gap-0.5 text-[8px] bg-blue-500/10 text-primary px-1.5 py-0.5 rounded-md font-medium">
+                            <TagIcon className="w-2 h-2" />
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Note Footer */}
@@ -449,17 +460,17 @@ const Dashboard = () => {
                           e.stopPropagation();
                           openEditModal(note);
                         }}
-                        className="p-1 hover:bg-slate-900/5 rounded text-slate-500"
+                        className="p-1 hover:bg-slate-900/5 rounded text-slate-500 cursor-pointer"
                         title="Edit note"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={(e) => openDeleteDialog(e, note)}
-                        className="p-1 hover:bg-red-50 rounded text-red-500"
-                        title="Delete note"
+                        onClick={(e) => handleArchiveNote(e, note)}
+                        className="p-1 hover:bg-slate-900/5 rounded text-slate-500 cursor-pointer hover:text-primary"
+                        title="Archive note"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Archive className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -498,141 +509,51 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Info panel */}
-          <div className="bg-gradient-to-b from-blue-50/50 to-indigo-50/30 border border-blue-50 p-6 rounded-2xl shadow-premium flex flex-col justify-between">
-            <div className="space-y-3">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest block">Secure Note Vault</span>
-              <h4 className="text-sm font-bold text-slate-800 leading-tight">Database integrity active</h4>
-              <p className="text-slate-500 text-xs leading-relaxed">
-                All records are saved securely. When deleting notes, data is permanently scrubbed from the active local store.
-              </p>
+          {/* Dynamic Organization Insights Panel */}
+          <div className="bg-gradient-to-b from-blue-50/50 to-indigo-50/30 border border-blue-50 p-6 rounded-2xl shadow-premium space-y-4">
+            <div className="flex items-center gap-2 border-b border-blue-100/60 pb-3">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Vault Insights</h4>
             </div>
-            
-            <div className="mt-6 pt-4 border-t border-blue-100/60 flex items-center justify-between text-[10px] text-slate-400">
-              <span>SQLite version: 3.x</span>
-              <span>Encryption: AES-ready</span>
+            <div className="space-y-3.5">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Most Active Category</span>
+                <span className="text-xs font-semibold text-slate-700 block mt-0.5">{mostActiveCategory}</span>
+              </div>
+              
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Last Updated Note</span>
+                {recentlyUpdated ? (
+                  <button 
+                    onClick={() => openEditModal(recentlyUpdated)}
+                    className="text-xs text-left font-semibold text-primary hover:underline block mt-0.5 cursor-pointer"
+                  >
+                    {recentlyUpdated.title} <span className="text-[10px] text-slate-400 font-normal">({getRelativeTime(recentlyUpdated.updated_at)})</span>
+                  </button>
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400 block mt-0.5">None</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* CREATE & EDIT NOTE MODAL */}
-      {isNoteModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-premium border border-slate-100 max-w-lg w-full overflow-hidden animate-slide-up flex flex-col">
-            <div className="p-5 border-b border-slate-50 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-800">
-                {noteModalMode === 'create' ? 'Create New Note' : 'Edit Note'}
-              </h3>
-              <button
-                onClick={() => setIsNoteModalOpen(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors focus:outline-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleNoteSubmit} className="p-5 space-y-4">
-              {/* Title Input */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Note title"
-                  value={noteForm.title}
-                  onChange={(e) => setNoteForm({ ...noteForm, title: e.target.value })}
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent"
-                />
-              </div>
-
-              {/* Content Textarea */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Content (Optional)</label>
-                <textarea
-                  placeholder="Write note contents here..."
-                  rows="5"
-                  value={noteForm.content}
-                  onChange={(e) => setNoteForm({ ...noteForm, content: e.target.value })}
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-primary transition-colors text-slate-700 bg-transparent resize-none"
-                />
-              </div>
-
-              {/* Color Preset Selector */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Color Accent</label>
-                <div className="flex flex-wrap gap-2.5">
-                  {COLOR_PRESETS.map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      onClick={() => setNoteForm({ ...noteForm, color: preset.value })}
-                      className={`w-7 h-7 rounded-full border cursor-pointer transition-all duration-150 flex items-center justify-center ${
-                        noteForm.color === preset.value
-                          ? 'border-primary ring-2 ring-primary/20 scale-105 shadow-sm'
-                          : 'border-slate-200 hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: preset.value }}
-                      title={preset.name}
-                    >
-                      {noteForm.color === preset.value && (
-                        <div className="w-1.5 h-1.5 bg-slate-700 rounded-full"></div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-50">
-                <button
-                  type="button"
-                  onClick={() => setIsNoteModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-                >
-                  {noteModalMode === 'create' ? 'Create Note' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* DELETE CONFIRMATION DIALOG */}
-      {isDeleteConfirmOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-premium border border-slate-100 max-w-sm w-full p-5 animate-slide-up space-y-4">
-            <h3 className="text-sm font-bold text-slate-800">Delete Note</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Are you sure you want to delete <span className="font-semibold text-slate-700">"{noteToDelete?.title}"</span>? This action cannot be undone and will permanently erase this record.
-            </p>
-            
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => {
-                  setIsDeleteConfirmOpen(false);
-                  setNoteToDelete(null);
-                }}
-                className="px-3.5 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteNote}
-                className="px-3.5 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold shadow-xs cursor-pointer"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable Note Modal */}
+      <NoteModal
+        isOpen={isNoteModalOpen}
+        onClose={() => {
+          setIsNoteModalOpen(false);
+          setSelectedNote(null);
+        }}
+        note={selectedNote}
+        mode={noteModalMode}
+        categories={categories}
+        tags={tags}
+        onNoteSaved={handleNoteSaved}
+        onTagCreated={(newTag) => setTags([...tags, newTag])}
+        onCategoryCreated={(newCategory) => setCategories([...categories, newCategory])}
+      />
     </div>
   );
 };

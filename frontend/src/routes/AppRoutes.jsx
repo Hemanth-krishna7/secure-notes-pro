@@ -4,6 +4,8 @@ import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
+import AllNotes from '../pages/AllNotes';
+import Archive from '../pages/Archive';
 import AuthLayout from '../layouts/AuthLayout';
 import DashboardLayout from '../layouts/DashboardLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
@@ -28,6 +30,8 @@ const AppRoutes = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard/notes" element={<AllNotes />} />
+          <Route path="/dashboard/archive" element={<Archive />} />
         </Route>
       </Route>
 

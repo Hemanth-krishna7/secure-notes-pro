@@ -15,6 +15,14 @@ class Note(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id', ondelete='SET NULL'), nullable=True)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Relationships
+    category = db.relationship('Category', back_populates='notes')
+    tags = db.relationship('Tag', secondary='note_tags', backref=db.backref('notes', lazy='dynamic'))
+    attachments = db.relationship('Attachment', back_populates='note', cascade='all, delete-orphan')
+
     def to_dict(self):
         """Serializes the note object into a dictionary."""
         created_at_utc = self.created_at
@@ -32,6 +40,11 @@ class Note(db.Model):
             'color': self.color,
             'is_pinned': self.is_pinned,
             'is_favorite': self.is_favorite,
+            'is_archived': self.is_archived,
+            'category_id': self.category_id,
+            'category': self.category.to_dict() if self.category else {"id": None, "name": "Uncategorized"},
+            'tags': [tag.to_dict() for tag in self.tags],
+            'attachments': [a.to_dict() for a in self.attachments],
             'user_id': self.user_id,
             'created_at': created_at_utc.isoformat() if created_at_utc else None,
             'updated_at': updated_at_utc.isoformat() if updated_at_utc else None

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { Menu, User, Bell, ChevronDown } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -11,6 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user } = useAuth();
+  const location = useLocation();
 
   const getInitials = (name) => {
     if (!name) return 'U';
@@ -19,6 +20,18 @@ const DashboardLayout = () => {
     if (parts.length === 1) return parts[0].substring(0, Math.min(2, parts[0].length)).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
+
+  const getHeaderInfo = () => {
+    if (location.pathname === '/dashboard/notes') {
+      return { title: 'All Notes', subtitle: 'Manage, filter, and search your collection' };
+    }
+    if (location.pathname === '/dashboard/archive') {
+      return { title: 'Archived Notes', subtitle: 'Restore or permanently delete archived items' };
+    }
+    return { title: 'Dashboard', subtitle: 'Workspace Overview' };
+  };
+
+  const { title, subtitle } = getHeaderInfo();
 
   return (
     <div className="min-h-screen bg-slate-50/50 flex overflow-hidden">
@@ -38,8 +51,8 @@ const DashboardLayout = () => {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex flex-col">
-              <h1 className="text-sm font-semibold text-slate-900 leading-none">Dashboard</h1>
-              <span className="text-xs text-slate-400 mt-1">Workspace Overview</span>
+              <h1 className="text-sm font-semibold text-slate-900 leading-none">{title}</h1>
+              <span className="text-xs text-slate-400 mt-1">{subtitle}</span>
             </div>
           </div>
 
@@ -57,7 +70,6 @@ const DashboardLayout = () => {
               </div>
               <div className="hidden sm:flex flex-col text-left">
                 <span className="text-xs font-semibold text-slate-700 leading-none">{user?.full_name || 'User'}</span>
-                <span className="text-[10px] text-slate-400 mt-0.5">Premium Plan</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
             </div>

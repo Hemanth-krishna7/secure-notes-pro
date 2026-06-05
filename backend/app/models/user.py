@@ -16,6 +16,8 @@ class User(UserMixin, db.Model):
 
     # Relationships
     notes = db.relationship('Note', backref='user', lazy=True, cascade='all, delete-orphan')
+    categories = db.relationship('Category', back_populates='user', lazy=True, cascade='all, delete-orphan')
+    tags = db.relationship('Tag', back_populates='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         """Hashes the password and saves it to password_hash."""

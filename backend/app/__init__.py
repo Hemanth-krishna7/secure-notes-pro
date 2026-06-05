@@ -52,14 +52,24 @@ def create_app(config_name='development'):
         supports_credentials=True
     )
     
+    # Ensure upload folder exists
+    import os
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
     # Import and register blueprints
     from app.routes.main_routes import main_bp
     from app.routes.auth_routes import auth_bp
     from app.routes.notes_routes import notes_bp
+    from app.routes.categories_routes import categories_bp
+    from app.routes.tags_routes import tags_bp
+    from app.routes.attachments_routes import attachments_bp
     
     app.register_blueprint(main_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(notes_bp, url_prefix='/api/notes')
+    app.register_blueprint(categories_bp, url_prefix='/api/categories')
+    app.register_blueprint(tags_bp, url_prefix='/api/tags')
+    app.register_blueprint(attachments_bp, url_prefix='/api')
     
     # Register global error handlers
     @app.errorhandler(404)

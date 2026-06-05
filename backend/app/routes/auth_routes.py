@@ -51,6 +51,13 @@ def register():
         db.session.add(user)
         db.session.commit()
         
+        # Seed default categories: Uncategorized, Personal, Study, Work
+        from app.models.category import Category
+        for cat_name in ['Uncategorized', 'Personal', 'Study', 'Work']:
+            category = Category(name=cat_name, user_id=user.id)
+            db.session.add(category)
+        db.session.commit()
+        
         # 4. Automatically log in the user
         login_user(user, remember=True)
         
