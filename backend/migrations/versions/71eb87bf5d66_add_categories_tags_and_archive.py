@@ -45,7 +45,7 @@ def upgrade():
     )
     with op.batch_alter_table('notes', schema=None) as batch_op:
         batch_op.add_column(sa.Column('category_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('is_archived', sa.Boolean(), nullable=False, server_default=sa.text('0')))
+        batch_op.add_column(sa.Column('is_archived', sa.Boolean(), nullable=False, server_default=sa.text('false')))
         batch_op.create_foreign_key('fk_notes_category_id', 'categories', ['category_id'], ['id'], ondelete='SET NULL')
 
     # ### end Alembic commands ###

@@ -12,11 +12,12 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Upload Configurations
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'instance', 'uploads')
+    UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', os.path.join(BASE_DIR, 'instance', 'uploads'))
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10MB limit
     
-    # Secure Session Cookies Configuration
+    # Secure Session Cookies Configuration (Development fallbacks)
     SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # Configure database URI
@@ -45,6 +46,8 @@ class ProductionConfig(Config):
     """Production configuration."""
     DEBUG = False
     TESTING = False
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'None'  # Allows cookie usage across Vercel-Render domains
 
 # Mapping of configuration names to classes
 config_by_name = {

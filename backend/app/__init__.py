@@ -42,13 +42,20 @@ def create_app(config_name='development'):
         }), 401
     
     # Configure CORS - allow frontend credentials for session-based auth
-    cors.init_app(
-        app,
-        resources={r"/api/*": {"origins": [
+    import os
+    allowed_origins_env = os.environ.get('ALLOWED_ORIGINS')
+    if allowed_origins_env:
+        allowed_origins = allowed_origins_env.split(',')
+    else:
+        allowed_origins = [
             "http://localhost:5173", "http://127.0.0.1:5173",
             "http://localhost:5174", "http://127.0.0.1:5174",
             "http://localhost:5175", "http://127.0.0.1:5175"
-        ]}},
+        ]
+
+    cors.init_app(
+        app,
+        resources={r"/api/*": {"origins": allowed_origins}},
         supports_credentials=True
     )
     
