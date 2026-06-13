@@ -2,7 +2,7 @@
 
 A full-stack note management platform that helps users organize ideas, manage knowledge, and securely access notes across devices.
 
-### Live Demo
+### Live Demo :-
 
 Try the application here:
 
